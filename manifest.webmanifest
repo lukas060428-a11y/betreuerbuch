@@ -1,0 +1,14 @@
+{
+  "name": "Betreuerbuch",
+  "short_name": "Betreuerbuch",
+  "description": "Klientenakte, Fahrtenbuch, Fristen und Vergütung für Berufsbetreuer – verschlüsselt auf dem eigenen Gerät.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#0f6b5c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
