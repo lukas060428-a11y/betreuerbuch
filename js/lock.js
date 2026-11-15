@@ -7,7 +7,7 @@ const el = () => $('#lock');
 
 function show(html) {
   const l = el();
-  l.innerHTML = `<div class="lock-card">${icon('shield', 'lock-icon')}<h1>Betreuerbuch</h1>${html}</div>`;
+  l.innerHTML = `<div class="lock-card"><img src="icon.svg" class="lock-logo" alt=""><h1>Betreuerbuch</h1>${html}</div>`;
   l.hidden = false;
   document.body.classList.add('locked');
 }
