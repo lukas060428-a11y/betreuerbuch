@@ -1,20 +1,23 @@
 // Offline-Unterstützung: App-Dateien werden zwischengespeichert.
-// Strategie: erst Netz (damit Updates sofort ankommen), sonst Cache.
-const CACHE = 'betreuerbuch-v4';
+// Strategie: immer erst beim Server nachfragen (ohne Browser-Zwischenspeicher), damit Updates
+// sofort ankommen. Nur ohne Internet wird die gespeicherte Kopie benutzt.
+const CACHE = 'betreuerbuch-v5';
 const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
-  ...['main', 'util', 'crypto', 'db', 'store', 'model', 'geo', 'ui', 'lock', 'actions', 'export', 'templates'].map((f) => `./js/${f}.js`),
+  ...['main', 'config', 'util', 'crypto', 'db', 'store', 'model', 'geo', 'cloud', 'ui', 'lock', 'actions', 'export', 'templates'].map((f) => `./js/${f}.js`),
   ...['heute', 'klienten', 'fahrten', 'fristen', 'mehr'].map((f) => `./js/views/${f}.js`)];
 const XLSX_URL = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -33,13 +36,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Eigene App-Dateien: Netz zuerst, Cache als Rückfall
+  // Eigene App-Dateien: beim Server nachfragen, Cache nur als Rückfall (offline)
   if (url.origin === location.origin) {
-    e.respondWith(fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy));
+    e.respondWith(fetch(new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' })).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
-    }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))));
+    }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('./index.html'))));
   }
-  // Adresssuche/Routen (OpenStreetMap) gehen immer direkt ins Netz.
+  // Adresssuche/Routen (OpenStreetMap) und Google gehen immer direkt ins Netz.
 });
