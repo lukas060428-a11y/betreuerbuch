@@ -6,6 +6,7 @@ import { PLACEHOLDERS } from '../templates.js';
 import { view, header, navigate, rerender, emptyState } from '../ui.js';
 import { addrSearchHTML, wireAddrSearch, computeTargetKm, recomputeAllTargets } from '../geo.js';
 import { exportXlsx, exportCsv, printTrips } from '../export.js';
+import { cloudAvailable, cloudConnected, connect, disconnect, backupNow, restoreInteractive } from '../cloud.js';
 
 export function viewMore(lockNow) {
   header('Mehr');
@@ -14,7 +15,7 @@ export function viewMore(lockNow) {
     ['orte', 'pin', 'Feste Orte', `${state.places.length} Orte – Bank, Gericht, Ämter …`],
     ['vorlagen', 'mail', 'Textvorlagen', `${state.templates.length} Vorlagen für Schreiben`],
     ['export', 'download', 'Fahrtenbuch exportieren', 'Excel, CSV, Drucken / PDF'],
-    ['sicherung', 'shield', 'Datensicherung', state.lastBackup ? 'Zuletzt ' + fmtDate(state.lastBackup.slice(0, 10)) : 'Noch nie gesichert'],
+    ['sicherung', 'shield', 'Datensicherung', (cloudConnected() ? 'Google Drive verbunden · ' : '') + (state.lastBackup ? 'zuletzt ' + fmtDate(state.lastBackup.slice(0, 10)) : 'noch nie gesichert')],
     ['sicherheit', 'key', 'Passwort & Sperre', `Automatisch sperren nach ${state.settings.autoLockMin} Min.`],
   ];
   view().innerHTML = `
@@ -218,9 +219,33 @@ export function viewExport() {
 }
 
 // ---------- Datensicherung ----------
+function cloudSectionHTML() {
+  if (!cloudAvailable()) return '';
+  const c = state.cloud || {};
+  const when = c.lastUpload ? new Date(c.lastUpload).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : 'noch nie';
+  return `<h2>Google Drive</h2>
+    <div class="card stack">
+      ${c.connected ? `
+        <div class="row">${icon('shield')}<div class="grow"><b>Verbunden</b><div class="small muted">${esc(c.email || '')}</div></div></div>
+        <p class="small" style="margin:0">Letzte Sicherung in Google Drive: <b>${when}</b></p>
+        <p class="small muted" style="margin:0">Gesichert wird automatisch: beim Entsperren (wenn die letzte Sicherung älter als 12 Stunden ist) und – solange du angemeldet bist – kurz nach jeder Änderung.</p>
+        <button class="btn primary block" id="cl-now">Jetzt in Google Drive sichern</button>
+        <div class="row">
+          <button class="btn secondary grow" id="cl-load">Von dort laden</button>
+          <button class="btn secondary grow" id="cl-off">Trennen</button>
+        </div>`
+      : `
+        <p style="margin:0">Sichert alle Daten <b>automatisch und verschlüsselt</b> in deinem Google Drive. Geht das Handy verloren, holst du dir alles auf dem neuen Gerät zurück – und am PC kannst du den Stand ebenfalls laden.</p>
+        <p class="small muted" style="margin:0">Google sieht nur eine verschlüsselte Datei, nicht die Inhalte. Die App bekommt nur Zugriff auf ihren eigenen versteckten Ordner, nicht auf deine anderen Dateien.</p>
+        <button class="btn primary block" id="cl-connect">Mit Google verbinden</button>`}
+    </div>`;
+}
+
 export function viewBackup() {
   header('Datensicherung', { back: 'mehr' });
   view().innerHTML = `
+    ${cloudSectionHTML()}
+    ${cloudAvailable() ? '<h2>Sicherungsdatei</h2>' : ''}
     <div class="card stack">
       <p style="margin:0">Alle Daten liegen nur auf diesem Gerät. Geht es verloren oder kaputt, hilft nur eine Sicherung.</p>
       <p class="small muted" style="margin:0">Die Sicherungsdatei ist <b>verschlüsselt</b> – mit dem Passwort, das jetzt gilt. Du kannst sie also gefahrlos in deine Cloud legen oder dir per Mail schicken.</p>
@@ -236,6 +261,40 @@ export function viewBackup() {
     toast('Sicherung erstellt');
     viewBackup();
   };
+
+  $('#cl-connect')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true; b.textContent = 'Verbinde …';
+    try {
+      const email = await connect();
+      toast('Verbunden mit ' + email);
+      await backupNow({ silent: true });
+      toast('Erste Sicherung in Google Drive erstellt');
+    } catch (err) { toast(err.message); }
+    viewBackup();
+  });
+  $('#cl-now')?.addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true; e.currentTarget.textContent = 'Sichere …';
+    await backupNow();
+  });
+  $('#cl-load')?.addEventListener('click', () => restoreInteractive());
+  $('#cl-off')?.addEventListener('click', async () => {
+    const dlg = openDialog(`<h3>Google Drive trennen?</h3>
+      <p>Danach wird nicht mehr automatisch gesichert.</p>
+      <div class="stack">
+        <button class="btn secondary block" data-keep>Trennen, Sicherung in Drive behalten</button>
+        <button class="btn danger block" data-del>Trennen und Sicherung in Drive löschen</button>
+        <button class="link" data-cancel>Abbrechen</button>
+      </div>`);
+    const run = async (deleteRemote) => {
+      closeDialog();
+      try { await disconnect({ deleteRemote }); toast(deleteRemote ? 'Getrennt, Sicherung gelöscht' : 'Getrennt'); } catch (err) { toast(err.message); }
+      viewBackup();
+    };
+    $('[data-cancel]', dlg).onclick = closeDialog;
+    $('[data-keep]', dlg).onclick = () => run(false);
+    $('[data-del]', dlg).onclick = async () => { if (await confirmDialog('Die Sicherung in Google Drive endgültig löschen?', 'Löschen')) run(true); };
+  });
 }
 
 // ---------- Sicherheit ----------

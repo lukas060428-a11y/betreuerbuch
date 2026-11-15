@@ -1,7 +1,8 @@
 // Einstieg: Sperre, Router, automatische Sperre bei Inaktivität.
 import { $, $$, closeDialog } from './util.js';
-import { hasVault, isUnlocked, lock, state } from './store.js';
+import { hasVault, isUnlocked, lock, state, setAfterSave } from './store.js';
 import { overdueCount } from './model.js';
+import { preloadGoogle, autoBackupOnUnlock, scheduleLiveBackup, setCloudUiRefresh, cloudConnected } from './cloud.js';
 import { showSetup, showUnlock, hideLock } from './lock.js';
 import { setRerender, navigate } from './ui.js';
 import { viewToday } from './views/heute.js';
@@ -45,6 +46,8 @@ function render() {
   navigate('heute');
 }
 setRerender(render);
+setCloudUiRefresh(render);
+setAfterSave(scheduleLiveBackup);
 window.addEventListener('hashchange', () => { closeDialog(); render(); });
 $$('.tabbar button').forEach((b) => b.onclick = () => navigate(b.dataset.tab));
 
@@ -53,6 +56,7 @@ function onUnlocked() {
   hideLock();
   touch();
   render();
+  if (cloudConnected()) preloadGoogle().then(autoBackupOnUnlock).catch(() => {});
 }
 function lockApp() {
   closeDialog();

@@ -1,9 +1,10 @@
 // Startseite: was heute wichtig ist.
 import { state } from '../store.js';
-import { $$, esc, fmtDate, fmtKm, fmtEur, todayISO, daysUntil, icon } from '../util.js';
+import { $, $$, esc, fmtDate, fmtKm, fmtEur, todayISO, daysUntil, icon } from '../util.js';
 import { openDeadlines, dueBilling, billingIsLate, upcomingBirthdays, clientName, activeClients } from '../model.js';
 import { view, header, navigate } from '../ui.js';
 import { openLogDialog, openDocDialog, openBillingDialog } from '../actions.js';
+import { cloudAvailable, cloudConnected, backupNow } from '../cloud.js';
 import { openDeadlineDialog, deadlineItemHTML, wireDeadlineItems } from './fristen.js';
 
 function greeting() {
@@ -21,8 +22,19 @@ export function viewToday() {
   const month = todayISO().slice(0, 7);
   const monthTrips = state.trips.filter((t) => t.date.startsWith(month));
   const monthKm = monthTrips.reduce((a, t) => a + t.km, 0);
-  const backupDays = state.lastBackup ? -daysUntil(state.lastBackup.slice(0, 10)) : null;
-  const needsBackup = (state.clients.length || state.trips.length) && (backupDays == null || backupDays > 30);
+  const hasData = state.clients.length || state.trips.length;
+  let backupBanner = '';
+  if (cloudConnected()) {
+    const hours = state.cloud.lastUpload ? (Date.now() - Date.parse(state.cloud.lastUpload)) / 3600000 : Infinity;
+    if (hasData && hours > 24) backupBanner = `<div class="banner" style="margin-top:16px">${icon('shield')}
+      ${hours === Infinity ? 'Noch keine Sicherung in Google Drive.' : `Letzte Google-Drive-Sicherung vor ${Math.floor(hours / 24)} Tag(en).`}
+      <br><button class="btn primary" id="h-cloud">Jetzt in Google Drive sichern</button></div>`;
+  } else {
+    const backupDays = state.lastBackup ? -daysUntil(state.lastBackup.slice(0, 10)) : null;
+    if (hasData && (backupDays == null || backupDays > 30)) backupBanner = `<div class="banner" style="margin-top:16px">${icon('shield')}
+      ${backupDays == null ? 'Du hast noch nie eine Sicherung gemacht.' : `Letzte Sicherung vor ${backupDays} Tagen.`}
+      Geht das Handy verloren, sind die Daten sonst weg.<br><button class="btn primary" data-nav="sicherung">${cloudAvailable() ? 'Sicherung einrichten' : 'Jetzt sichern'}</button></div>`;
+  }
 
   const setup = [
     !s.home && ['Wohnadresse eintragen', 'einstellungen'],
@@ -69,8 +81,7 @@ export function viewToday() {
       <div class="stat"><b>${state.logs.filter((l) => l.date.startsWith(month)).length}</b><span>Kontakte</span></div>
     </button>
 
-    ${needsBackup ? `<div class="banner" style="margin-top:16px">${icon('shield')} ${backupDays == null ? 'Du hast noch nie eine Sicherung gemacht.' : `Letzte Sicherung vor ${backupDays} Tagen.`}
-      Geht das Handy verloren, sind die Daten sonst weg.<br><button class="btn primary" data-nav="sicherung">Jetzt sichern</button></div>` : ''}
+    ${backupBanner}
   `;
 
   const v = view();
@@ -87,4 +98,8 @@ export function viewToday() {
     openBillingDialog(item.client, item.period);
   });
   wireDeadlineItems(v);
+  $('#h-cloud', v)?.addEventListener('click', (e) => {
+    e.currentTarget.disabled = true; e.currentTarget.textContent = 'Sichere …';
+    backupNow();
+  });
 }

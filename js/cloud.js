@@ -180,7 +180,7 @@ export function autoBackupOnUnlock() {
 
 /** Nach jeder Änderung: solange ein Token da ist, kurz danach automatisch sichern. */
 export function scheduleLiveBackup() {
-  if (!cloudConnected() || !hasToken()) return;
+  if (busy || !cloudConnected() || !hasToken()) return; // busy: das Speichern kam von der Sicherung selbst
   clearTimeout(liveTimer);
   liveTimer = setTimeout(() => { if (isUnlocked() && navigator.onLine) backupNow({ silent: true }); }, LIVE_DELAY_MS);
 }

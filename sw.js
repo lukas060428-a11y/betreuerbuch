@@ -1,7 +1,7 @@
 // Offline-Unterstützung: App-Dateien werden zwischengespeichert.
 // Strategie: immer erst beim Server nachfragen (ohne Browser-Zwischenspeicher), damit Updates
 // sofort ankommen. Nur ohne Internet wird die gespeicherte Kopie benutzt.
-const CACHE = 'betreuerbuch-v5';
+const CACHE = 'betreuerbuch-v6';
 const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
   ...['main', 'config', 'util', 'crypto', 'db', 'store', 'model', 'geo', 'cloud', 'ui', 'lock', 'actions', 'export', 'templates'].map((f) => `./js/${f}.js`),
   ...['heute', 'klienten', 'fahrten', 'fristen', 'mehr'].map((f) => `./js/views/${f}.js`)];

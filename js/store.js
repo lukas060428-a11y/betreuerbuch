@@ -25,6 +25,7 @@ const fresh = () => ({
   templates: DEFAULT_TEMPLATES.map((t) => ({ ...t })),
   purposes: [...DEFAULT_PURPOSES],
   lastBackup: null,
+  cloud: { connected: false },
 });
 
 function normalize(s) {
@@ -67,12 +68,16 @@ export async function unlock(password) {
 
 export function lock() { key = null; state = null; }
 
+let afterSave = () => {};
+/** Wird nach jedem erfolgreichen Speichern aufgerufen (z. B. für die automatische Cloud-Sicherung). */
+export const setAfterSave = (fn) => { afterSave = fn; };
+
 /** Speichert den aktuellen Stand (Schreibvorgänge laufen nacheinander). */
 export function save() {
   if (!key) return writeChain;
   const k = key, json = JSON.stringify(state);
   writeChain = writeChain
-    .then(async () => idbSet('state', await encryptText(k, json)))
+    .then(async () => { await idbSet('state', await encryptText(k, json)); afterSave(); })
     .catch((e) => { console.error(e); toast('Speichern fehlgeschlagen: ' + e.message); });
   return writeChain;
 }

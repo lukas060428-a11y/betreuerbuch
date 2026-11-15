@@ -14,6 +14,7 @@ Alle Daten liegen **verschlüsselt nur auf dem eigenen Gerät** – kein Server,
 - **Post**: Briefe fotografieren (mehrere Seiten), verschlüsselt ablegen, Frist direkt dazu anlegen
 - **Schreiben**: Textvorlagen mit Platzhaltern → Kopieren, E-Mail, Teilen, Drucken
 - **Sicherheit**: App-Passwort, automatische Sperre, verschlüsselte Sicherungsdatei, Passwort ändern
+- **Google Drive**: verschlüsselte automatische Sicherung im versteckten App-Ordner (Scope `drive.appdata`), Konfliktschutz bei mehreren Geräten. Client-ID in `js/config.js`
 
 ## Aufbau
 ```

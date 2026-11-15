@@ -1,13 +1,14 @@
 // Sperrbildschirm: Ersteinrichtung des Passworts, Entsperren, "Passwort vergessen".
 import { $, icon, confirmDialog, toast } from './util.js';
 import { createVault, unlock, wipeAll, importBackup } from './store.js';
+import { cloudAvailable, preloadGoogle, downloadBackup, restoreFromDrive } from './cloud.js';
 
 const MIN_LEN = 6;
 const el = () => $('#lock');
 
 function show(html) {
   const l = el();
-  l.innerHTML = `<div class="lock-card"><img src="icon.svg" class="lock-logo" alt=""><h1>Betreuerbuch</h1>${html}</div>`;
+  l.innerHTML = `<div class="lock-card"><img src="icon.svg?v=2" class="lock-logo" alt=""><h1>Betreuerbuch</h1>${html}</div>`;
   l.hidden = false;
   document.body.classList.add('locked');
 }
@@ -94,9 +95,13 @@ function showForgot(onDone) {
 }
 
 function showRestore(onDone, onBack) {
+  let drive = null; // geladene Sicherung aus Google Drive
   show(`
-    <p>Wähle die Sicherungsdatei (.json) und gib das Passwort ein, das beim Erstellen der Sicherung galt.</p>
+    <p>Woher soll die Sicherung kommen? Danach das Passwort eingeben, das beim Sichern galt.</p>
     <div class="stack">
+      ${cloudAvailable() ? `<button class="btn secondary block" id="r-drive">${icon('download')} Aus Google Drive laden</button>
+        <div id="r-drive-info" class="small" hidden></div>
+        <div class="small muted">oder Sicherungsdatei wählen:</div>` : ''}
       <input type="file" id="r-file" accept=".json,application/json">
       ${pwField('r-pw', 'Passwort der Sicherung', 'current-password')}
       <button class="btn primary big" id="r-go">Wiederherstellen</button>
@@ -104,13 +109,29 @@ function showRestore(onDone, onBack) {
     </div>`);
   wireToggles();
   $('#r-back').onclick = onBack;
+  if (cloudAvailable()) preloadGoogle().catch(() => {});
+  $('#r-drive')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true; b.textContent = 'Verbinde mit Google …';
+    try {
+      drive = await downloadBackup();
+      const info = $('#r-drive-info');
+      info.hidden = false;
+      info.innerHTML = drive
+        ? `✓ Sicherung gefunden vom <b>${new Date(drive.meta.modifiedTime).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}</b>. Jetzt Passwort eingeben.`
+        : '<span class="err">In diesem Google-Konto liegt noch keine Sicherung.</span>';
+      if (drive) $('#r-pw').focus();
+    } catch (err) { toast(err.message); }
+    b.disabled = false; b.innerHTML = `${icon('download')} Aus Google Drive laden`;
+  });
   $('#r-go').onclick = async () => {
     const f = $('#r-file').files[0];
-    if (!f) return toast('Bitte eine Datei auswählen');
+    if (!drive && !f) return toast('Bitte zuerst eine Sicherung auswählen');
     const btn = $('#r-go');
     btn.disabled = true; btn.textContent = 'Prüfe …';
     try {
-      const ok = await importBackup(JSON.parse(await f.text()), $('#r-pw').value);
+      const pw = $('#r-pw').value;
+      const ok = drive && !f ? await restoreFromDrive(drive, pw) : await importBackup(JSON.parse(await f.text()), pw);
       if (ok) { toast('Sicherung wiederhergestellt'); return onDone(); }
       toast('Falsches Passwort für diese Sicherung');
     } catch (e) { toast(e.message || 'Datei konnte nicht gelesen werden'); }
