@@ -1,7 +1,7 @@
 // Offline-Unterstützung: App-Dateien werden zwischengespeichert.
 // Strategie: erst Netz (damit Updates sofort ankommen), sonst Cache.
-const CACHE = 'betreuerbuch-v2';
-const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg',
+const CACHE = 'betreuerbuch-v3';
+const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './icon-maskable-512.png',
   ...['main', 'util', 'crypto', 'db', 'store', 'model', 'geo', 'ui', 'lock', 'actions', 'export', 'templates'].map((f) => `./js/${f}.js`),
   ...['heute', 'klienten', 'fahrten', 'fristen', 'mehr'].map((f) => `./js/views/${f}.js`)];
 const XLSX_URL = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
