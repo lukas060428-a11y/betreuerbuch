@@ -81,7 +81,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) chec
 if (!window.isSecureContext || !crypto.subtle) {
   document.body.innerHTML = '<p style="padding:24px">Die App braucht eine sichere Verbindung (https). Bitte über die richtige Adresse öffnen.</p>';
 } else {
-  (await hasVault()) ? showUnlock(onUnlocked) : showSetup(onUnlocked);
+  (await hasVault()) ? showUnlock(onUnlocked, { auto: true }) : showSetup(onUnlocked);
 }
 navigator.storage?.persist?.().catch(() => {});
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

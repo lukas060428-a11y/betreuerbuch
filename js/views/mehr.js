@@ -1,11 +1,12 @@
 // "Mehr": Einstellungen, feste Orte, Textvorlagen, Export, Datensicherung, Sicherheit.
-import { state, save, exportBackup, changePassword } from '../store.js';
+import { state, save, exportBackup, changePassword, verifyPassword } from '../store.js';
 import { $, $$, esc, uid, fmtKm, fmtEur, fmtDate, todayISO, parseNum, toast, confirmDialog, openDialog, closeDialog, download, icon } from '../util.js';
 import { tripsOfYear, tripYears, usageCounts } from '../model.js';
 import { PLACEHOLDERS } from '../templates.js';
 import { view, header, navigate, rerender, emptyState } from '../ui.js';
 import { addrSearchHTML, wireAddrSearch, computeTargetKm, recomputeAllTargets } from '../geo.js';
 import { exportXlsx, exportCsv, printTrips } from '../export.js';
+import { bioSupported, bioEnabled, enableBio, disableBio, isCancel } from '../bio.js';
 import { cloudAvailable, cloudConnected, connect, disconnect, backupNow, restoreInteractive } from '../cloud.js';
 
 export function viewMore(lockNow) {
@@ -301,6 +302,8 @@ export function viewBackup() {
 export function viewSecurity() {
   header('Passwort & Sperre', { back: 'mehr' });
   view().innerHTML = `
+    <h2>Fingerabdruck</h2>
+    <div class="card stack" id="bio-card"><p class="small muted" style="margin:0">Prüfe Gerät …</p></div>
     <h2>Automatisch sperren</h2>
     <div class="card">
       <label class="field">Sperren, wenn die App so lange nicht benutzt wurde
@@ -326,6 +329,48 @@ export function viewSecurity() {
     b.disabled = false; b.textContent = 'Passwort ändern';
     if (!ok) return toast('Aktuelles Passwort ist falsch');
     $$('input[type=password]').forEach((i) => { i.value = ''; });
-    toast('Passwort geändert');
+    if (await bioEnabled()) {
+      await disableBio();
+      toast('Passwort geändert – bitte den Fingerabdruck neu einrichten');
+      viewSecurity();
+    } else toast('Passwort geändert');
   };
+  renderBioCard();
+}
+
+async function renderBioCard() {
+  const card = $('#bio-card');
+  const [supported, enabled] = await Promise.all([bioSupported(), bioEnabled()]);
+  if (!card.isConnected) return;
+  if (enabled) {
+    card.innerHTML = `
+      <div class="row">${icon('finger')}<div class="grow"><b>Eingeschaltet</b><div class="small muted">Beim Öffnen reicht der Fingerabdruck. Das Passwort funktioniert weiterhin.</div></div></div>
+      <button class="btn secondary block" id="bio-off">Ausschalten</button>`;
+    $('#bio-off').onclick = async () => {
+      await disableBio();
+      toast('Fingerabdruck ausgeschaltet');
+      renderBioCard();
+    };
+  } else if (!supported) {
+    card.innerHTML = '<p class="small muted" style="margin:0">Auf diesem Gerät ist kein Fingerabdruck bzw. keine Displaysperre für Apps verfügbar.</p>';
+  } else {
+    card.innerHTML = `
+      <p class="small" style="margin:0">Statt des Passworts den Fingerabdruck (oder die Gesichtserkennung) zum Entsperren nutzen.</p>
+      <input type="password" id="bio-pw" placeholder="Zur Bestätigung: aktuelles Passwort" autocomplete="current-password">
+      <button class="btn primary block" id="bio-on">${icon('finger')} Fingerabdruck einrichten</button>`;
+    $('#bio-on').onclick = async (e) => {
+      const b = e.currentTarget, pw = $('#bio-pw').value;
+      if (!pw) return toast('Bitte das aktuelle Passwort eingeben');
+      b.disabled = true; b.textContent = 'Prüfe Passwort …';
+      if (!(await verifyPassword(pw))) { b.disabled = false; b.innerHTML = `${icon('finger')} Fingerabdruck einrichten`; return toast('Passwort ist falsch'); }
+      b.textContent = 'Bitte Finger auflegen …';
+      try {
+        await enableBio(pw);
+        toast('Fingerabdruck eingerichtet');
+      } catch (err) {
+        if (!isCancel(err)) toast(err.message);
+      }
+      renderBioCard();
+    };
+  }
 }

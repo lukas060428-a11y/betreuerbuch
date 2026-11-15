@@ -82,10 +82,17 @@ export function save() {
   return writeChain;
 }
 
-export async function changePassword(oldPw, newPw) {
+/** Liefert den Schlüssel zum Passwort, oder null wenn es falsch ist. */
+async function keyForPassword(password) {
   const meta = await idbGet('meta');
-  const oldKey = await deriveKey(oldPw, meta.salt, meta.iter);
-  try { await decryptBytes(oldKey, await idbGet('state')); } catch { return false; }
+  const k = await deriveKey(password, meta.salt, meta.iter);
+  try { await decryptBytes(k, await idbGet('state')); return k; } catch { return null; }
+}
+export const verifyPassword = async (password) => !!(await keyForPassword(password));
+
+export async function changePassword(oldPw, newPw) {
+  const oldKey = await keyForPassword(oldPw);
+  if (!oldKey) return false;
   const salt = randomBytes(16);
   const newKey = await deriveKey(newPw, salt);
   // Erst alles im Speicher neu verschlüsseln, dann in einer Transaktion schreiben.

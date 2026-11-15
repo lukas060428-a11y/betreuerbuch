@@ -13,7 +13,7 @@ Alle Daten liegen **verschlüsselt nur auf dem eigenen Gerät** – kein Server,
 - **Vergütung**: 3-Monats-Zeiträume ab Bestellung, Status fällig/beantragt/bezahlt, Warnung bei lange offenen Zeiträumen
 - **Post**: Briefe fotografieren (mehrere Seiten), verschlüsselt ablegen, Frist direkt dazu anlegen
 - **Schreiben**: Textvorlagen mit Platzhaltern → Kopieren, E-Mail, Teilen, Drucken
-- **Sicherheit**: App-Passwort, automatische Sperre, verschlüsselte Sicherungsdatei, Passwort ändern
+- **Sicherheit**: App-Passwort, Entsperren per Fingerabdruck (Passkey + WebAuthn-PRF), automatische Sperre, verschlüsselte Sicherungsdatei, Passwort ändern
 - **Google Drive**: verschlüsselte automatische Sicherung im versteckten App-Ordner (Scope `drive.appdata`), Konfliktschutz bei mehreren Geräten. Client-ID in `js/config.js`
 
 ## Aufbau

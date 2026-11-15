@@ -2,6 +2,7 @@
 import { $, icon, confirmDialog, toast } from './util.js';
 import { createVault, unlock, wipeAll, importBackup } from './store.js';
 import { cloudAvailable, preloadGoogle, downloadBackup, restoreFromDrive } from './cloud.js';
+import { bioEnabled, passwordFromBio, disableBio, isCancel } from './bio.js';
 
 const MIN_LEN = 6;
 const el = () => $('#lock');
@@ -52,16 +53,40 @@ export function showSetup(onDone) {
   $('#pw-restore').onclick = () => showRestore(onDone, () => showSetup(onDone));
 }
 
-export function showUnlock(onDone) {
+/** auto = Fingerabdruck sofort abfragen (beim App-Start). */
+export async function showUnlock(onDone, { auto = false } = {}) {
+  const withBio = await bioEnabled();
   show(`
-    <p>Bitte App-Passwort eingeben.</p>
+    ${withBio ? `<button class="btn primary big" id="bio-go">${icon('finger')} Mit Fingerabdruck entsperren</button>
+      <p class="small muted" style="text-align:center">oder mit Passwort:</p>` : '<p>Bitte App-Passwort eingeben.</p>'}
     <div class="stack">
       ${pwField('pw', 'Passwort', 'current-password')}
-      <button class="btn primary big" id="pw-go">Entsperren</button>
+      <button class="btn ${withBio ? 'secondary' : 'primary'} big" id="pw-go">Entsperren</button>
       <button class="link" id="pw-forgot">Passwort vergessen?</button>
     </div>`);
   wireToggles();
-  setTimeout(() => $('#pw')?.focus(), 50);
+  if (!withBio) setTimeout(() => $('#pw')?.focus(), 50);
+
+  const bioGo = async () => {
+    const b = $('#bio-go');
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    try {
+      const pw = await passwordFromBio();
+      if (await unlock(pw)) return onDone();
+      // Passwort wurde inzwischen geändert (z. B. Sicherung eingespielt) → neu einrichten
+      await disableBio();
+      toast('Bitte mit Passwort entsperren und den Fingerabdruck neu einrichten');
+      b.remove();
+    } catch (e) {
+      if (!isCancel(e)) toast(e.message);
+      b.disabled = false;
+    }
+  };
+  if (withBio) {
+    $('#bio-go').onclick = bioGo;
+    if (auto) bioGo();
+  }
   const go = async () => {
     const btn = $('#pw-go');
     btn.disabled = true; btn.textContent = 'Prüfe …';

@@ -123,5 +123,6 @@ const PATHS = {
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   nav: '<path d="M3.5 11l17-7.5-7.5 17-2-7.5z"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  finger: '<path d="M7.5 5.5A7.5 7.5 0 0 1 19.5 11v2M4.5 9a7.5 7.5 0 0 0-.5 2.5V14M8 20c1-2 1.5-4.5 1.5-7.5a2.5 2.5 0 0 1 5 0c0 3.5-.5 6-1.5 8.5M12 12.5c0 3-.5 5.5-1.5 7.5M17 15.5c-.2 1.7-.6 3.2-1.2 4.5"/>',
 };
 export const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name] || ''}</svg>`;
